@@ -42,3 +42,10 @@ task_registry.register(
 task_registry.register(
     "run_with_sensor", TienKungEnv, TienKungRunWithSensorFlatEnvCfg(), TienKungRunWithSensorAgentCfg()
 )
+
+
+from legged_lab.envs.atom.atom_env import AtomEnv
+from legged_lab.envs.atom.walk_cfg import AtomWalkFlatEnvCfg, AtomWalkAgentCfg
+
+
+task_registry.register("atom_walk", AtomEnv, AtomWalkFlatEnvCfg(), AtomWalkAgentCfg())

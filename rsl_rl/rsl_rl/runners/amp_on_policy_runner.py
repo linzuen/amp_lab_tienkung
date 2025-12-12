@@ -114,6 +114,7 @@ class AmpOnPolicyRunner:
             num_preload_transitions=train_cfg["amp_num_preload_transitions"],
             motion_files=train_cfg["amp_motion_files"],
         )
+        print(f"amp_data.observation_dim: {amp_data.observation_dim}")
         amp_normalizer = Normalizer(amp_data.observation_dim)
         discriminator = Discriminator(
             amp_data.observation_dim * 2,

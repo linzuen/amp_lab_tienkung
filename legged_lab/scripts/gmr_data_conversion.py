@@ -2,8 +2,78 @@ import pickle
 import numpy as np
 import torch
 import argparse
-from isaaclab.utils.math import quat_mul, quat_conjugate, axis_angle_from_quat  
-from scipy.spatial.transform import Rotation 
+from scipy.spatial.transform import Rotation
+
+
+def quat_conjugate(q):
+    """Compute quaternion conjugate.
+    
+    Args:
+        q: Quaternion tensor of shape (..., 4) in (w, x, y, z) format
+    
+    Returns:
+        Conjugate quaternion of same shape
+    """
+    q_conj = q.clone()
+    q_conj[..., 1:] *= -1
+    return q_conj
+
+
+def quat_mul(q1, q2):
+    """Multiply two quaternions.
+    
+    Args:
+        q1: First quaternion tensor of shape (..., 4) in (w, x, y, z) format
+        q2: Second quaternion tensor of shape (..., 4) in (w, x, y, z) format
+    
+    Returns:
+        Product quaternion of same shape
+    """
+    w1, x1, y1, z1 = q1[..., 0], q1[..., 1], q1[..., 2], q1[..., 3]
+    w2, x2, y2, z2 = q2[..., 0], q2[..., 1], q2[..., 2], q2[..., 3]
+    
+    w = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2
+    x = w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2
+    y = w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2
+    z = w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2
+    
+    return torch.stack([w, x, y, z], dim=-1)
+
+
+def axis_angle_from_quat(q):
+    """Convert quaternion to axis-angle representation.
+    
+    Args:
+        q: Quaternion tensor of shape (..., 4) in (w, x, y, z) format
+    
+    Returns:
+        Axis-angle tensor of shape (..., 3)
+    """
+    # Normalize quaternion
+    q_norm = q / torch.norm(q, dim=-1, keepdim=True)
+    
+    w = q_norm[..., 0]
+    xyz = q_norm[..., 1:]
+    
+    # Compute angle
+    w_clamped = torch.clamp(w, -1.0, 1.0)
+    angle = 2 * torch.acos(w_clamped)
+    
+    # Compute axis
+    sin_half_angle = torch.sqrt(torch.clamp(1 - w_clamped * w_clamped, min=1e-8))
+    
+    # Handle near-zero rotation case (when sin_half_angle is very small)
+    small_angle_mask = sin_half_angle < 1e-6
+    sin_half_angle = torch.where(small_angle_mask, torch.ones_like(sin_half_angle), sin_half_angle)
+    
+    axis = xyz / sin_half_angle.unsqueeze(-1)
+    axis_angle = axis * angle.unsqueeze(-1)
+    
+    # Set to zero for near-zero rotations
+    axis_angle[small_angle_mask] = 0.0
+    
+    return axis_angle
+
 
 def convert_pkl_to_custom(input_pkl, output_txt, fps):
     dt = 1.0 / fps
@@ -21,7 +91,7 @@ def convert_pkl_to_custom(input_pkl, output_txt, fps):
     q1_conj = quat_conjugate(root_rot_t[:-1])         
     dq = quat_mul(q1_conj, root_rot_t[1:])            
     axis_angle = axis_angle_from_quat(dq)             
-    root_ang_vel = axis_angle / dt
+    root_ang_vel = (axis_angle / dt).numpy()
 
     dof_vel = (dof_pos[1:] - dof_pos[:-1]) / dt
 
