@@ -24,9 +24,9 @@ import torch
 
 
 class AMPLoader:
-    JOINT_POS_SIZE = 20
+    JOINT_POS_SIZE = 27
 
-    JOINT_VEL_SIZE = 20
+    JOINT_VEL_SIZE = 27
 
     END_EFFECTOR_POS_SIZE = 12
 
@@ -64,6 +64,8 @@ class AMPLoader:
         self.trajectory_weights = []
         self.trajectory_frame_durations = []
         self.trajectory_num_frames = []
+
+        print(f"motion_files: {motion_files}")
 
         for i, motion_file in enumerate(motion_files):
             self.trajectory_names.append(motion_file.split(".")[0])

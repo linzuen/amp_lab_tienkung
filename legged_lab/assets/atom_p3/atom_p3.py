@@ -5,25 +5,6 @@
 # Copyright (c) 2022-2025, The Isaac Lab Project Developers.
 # All rights reserved.
 #
-# Copyright (c) 2025-2026, The Legged Lab Project Developers.
-# All rights reserved.
-#
-# Copyright (c) 2025-2026, The TienKung-Lab Project Developers.
-# All rights reserved.
-# Modifications are licensed under the BSD-3-Clause license.
-#
-# This file contains code derived from the RSL-RL, Isaac Lab, and Legged Lab Projects,
-# with additional modifications by the TienKung-Lab Project,
-# and is distributed under the BSD-3-Clause license.
-
-"""Configuration for Unitree robots.
-
-The following configurations are available:
-
-* :obj:`G1_MINIMAL_CFG`: G1 humanoid robot with minimal collision bodies
-
-Reference: https://github.com/unitreerobotics/unitree_ros
-"""
 
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
@@ -31,13 +12,20 @@ from isaaclab.assets.articulation import ArticulationCfg
 
 from legged_lab.assets import ISAAC_ASSET_DIR
 
-ARMATURE_HIP_PITCH = 0.10897986
-ARMATURE_HIP_ROLL = 0.070622376
-ARMATURE_HIP_YAW = 0.036700268
-ARMATURE_KNEE = 0.0812586105
-ARMATURE_ANKLE = 0.01536
+# ARMATURE_HIP_PITCH = 0.10897986
+# ARMATURE_HIP_ROLL = 0.070622376
+# ARMATURE_HIP_YAW = 0.036700268
+# ARMATURE_KNEE = 0.0812586105
+# ARMATURE_ANKLE = 0.01536
 
-ARMATURE_WAIST = 0.1123945708
+# ARMATURE_WAIST = 0.1123945708
+ARMATURE_HIP_PITCH = 0.16535
+ARMATURE_HIP_ROLL = 0.107
+ARMATURE_HIP_YAW = 0.063127
+ARMATURE_KNEE = 0.11884
+ARMATURE_ANKLE = 0.021003
+
+ARMATURE_WAIST = 0.200045
 
 ARMATURE_SHOULDER_PITCH = 0.624
 ARMATURE_SHOULDER_ROLL = 0.24
@@ -193,8 +181,8 @@ ATOM_P3_CFG = ArticulationCfg(
                 ".*_ankle_pitch_joint": 15.71,
                 ".*_ankle_roll_joint": 15.71,
             },
-            stiffness=2.0 * STIFFNESS_ANKLE,
-            damping=2.0 * DAMPING_ANKLE,
+            stiffness=STIFFNESS_ANKLE,
+            damping=DAMPING_ANKLE,
             armature=2.0 * ARMATURE_ANKLE,
         ),
         "waist_yaw": ImplicitActuatorCfg(
@@ -211,7 +199,9 @@ ATOM_P3_CFG = ArticulationCfg(
                 ".*_shoulder_roll_joint",
                 ".*_shoulder_yaw_joint",
                 ".*_elbow_.*",
-                ".*_wrist_.*",
+                ".*_wrist_roll_joint",
+                ".*_wrist_pitch_joint",
+                ".*_wrist_yaw_joint",
             ],
             effort_limit_sim={
                 ".*_shoulder_pitch_joint": 93,
@@ -224,22 +214,22 @@ ATOM_P3_CFG = ArticulationCfg(
             },
             velocity_limit_sim = 6.0,
             stiffness={
-                ".*_shoulder_pitch_joint": 120,
-                ".*_shoulder_roll_joint": 100,
-                ".*_shoulder_yaw_joint": 100, 
-                ".*_elbow_.*": 100,
-                ".*_wrist_roll_joint": 80,
-                ".*_wrist_pitch_joint": 80,
-                ".*_wrist_yaw_joint": 80,
+                ".*_shoulder_pitch_joint": 150,
+                ".*_shoulder_roll_joint": 150,
+                ".*_shoulder_yaw_joint": 150, 
+                ".*_elbow_.*": 150,
+                ".*_wrist_roll_joint": 120,
+                ".*_wrist_pitch_joint": 120,
+                ".*_wrist_yaw_joint": 120,
             },
             damping={
-                ".*_shoulder_pitch_joint": 2,
-                ".*_shoulder_roll_joint": 2,
-                ".*_shoulder_yaw_joint": 2, 
-                ".*_elbow_.*": 2,
-                ".*_wrist_roll_joint": 1,
-                ".*_wrist_pitch_joint": 1,
-                ".*_wrist_yaw_joint": 1,
+                ".*_shoulder_pitch_joint": 5,
+                ".*_shoulder_roll_joint": 5,
+                ".*_shoulder_yaw_joint": 5, 
+                ".*_elbow_.*": 5,
+                ".*_wrist_roll_joint": 3,
+                ".*_wrist_pitch_joint": 3,
+                ".*_wrist_yaw_joint": 3,
             },
             armature={
                 ".*_shoulder_pitch_joint": ARMATURE_SHOULDER_PITCH,
@@ -254,3 +244,17 @@ ATOM_P3_CFG = ArticulationCfg(
         ),
     },
 )
+
+ATOM_P3_ACTION_SCALE = {}
+for a in ATOM_P3_CFG.actuators.values():
+    e = a.effort_limit_sim
+    s = a.stiffness
+    names = a.joint_names_expr
+    if not isinstance(e, dict):
+        e = {n: e for n in names}
+    if not isinstance(s, dict):
+        s = {n: s for n in names}
+    for n in names:
+        if n in e and n in s and s[n]:
+            print(f"ATOM_P3_ACTION_SCALE[{n}] = {0.25 * e[n] / s[n]}")
+            ATOM_P3_ACTION_SCALE[n] = 0.25 * e[n] / s[n]

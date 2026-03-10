@@ -33,6 +33,8 @@ parser.add_argument("--num_envs", type=int, default=None, help="Number of enviro
 parser.add_argument("--seed", type=int, default=None, help="Seed used for the environment")
 parser.add_argument("--save_path", type=str, default=None, help="Path to save the txt file")
 parser.add_argument("--fps", type=float, default=30.0, help="Target fps")
+parser.add_argument("--start_frame", type=int, default=0, help="Start frame index (skip frames before this)")
+parser.add_argument("--end_frame", type=int, default=None, help="End frame index (inclusive, None means use all frames)")
 
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
@@ -72,17 +74,31 @@ def play_amp_animation():
     env_class = task_registry.get_task_class(env_class_name)
     env = env_class(env_cfg, args_cli.headless)
 
-    frame_cnt = 0
+    # 确定帧范围
+    total_frames = env.motion_len
+    start_frame = max(0, args_cli.start_frame)
+    end_frame = args_cli.end_frame if args_cli.end_frame is not None else total_frames - 1
+    end_frame = min(end_frame, total_frames - 1)
+    
+    # 验证参数
+    if start_frame > end_frame:
+        raise ValueError(f"start_frame ({start_frame}) must be <= end_frame ({end_frame})")
+    if start_frame >= total_frames:
+        raise ValueError(f"start_frame ({start_frame}) must be < total_frames ({total_frames})")
+    
+    print(f"📊 Frame range: {start_frame} to {end_frame} (total: {total_frames} frames)")
+
+    frame_cnt = start_frame
     all_frames = []
     while simulation_app.is_running():
         while True:
-            time = (frame_cnt % (env.motion_len)) * (1.0/args_cli.fps)
+            time = (frame_cnt % total_frames) * (1.0/args_cli.fps)
             frame = env.visualize_motion(time)
             if args_cli.save_path:
                 frame = frame.cpu().numpy().reshape(-1)
                 all_frames.append(frame)
             frame_cnt += 1
-            if frame_cnt >= (env.motion_len - 1):  
+            if frame_cnt > end_frame:  
                 break
         break
 

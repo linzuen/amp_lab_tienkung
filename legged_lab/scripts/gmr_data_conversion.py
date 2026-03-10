@@ -88,10 +88,28 @@ def convert_pkl_to_custom(input_pkl, output_txt, fps):
     root_lin_vel = (root_pos[1:] - root_pos[:-1]) / dt
     root_rot_t = torch.tensor(root_rot, dtype=torch.float32)
 
+    print(f"[GMRDataConversion] root_rot_t[0] = {root_rot_t[0]}")
+    print(f"[GMRDataConversion] root_rot_t[1] = {root_rot_t[1]}")
+    print(f"[GMRDataConversion] root_rot_t[2] = {root_rot_t[2]}")
+
     q1_conj = quat_conjugate(root_rot_t[:-1])         
+    print(f"[GMRDataConversion] q1_conj[0] = {q1_conj[0]}")
+    print(f"[GMRDataConversion] q1_conj[1] = {q1_conj[1]}")
+    print(f"[GMRDataConversion] q1_conj[2] = {q1_conj[2]}")
     dq = quat_mul(q1_conj, root_rot_t[1:])            
+    print(f"[GMRDataConversion] dq[0] = {dq[0]}")
+    print(f"[GMRDataConversion] dq[1] = {dq[1]}")
+    print(f"[GMRDataConversion] dq[2] = {dq[2]}")
     axis_angle = axis_angle_from_quat(dq)             
+    print(f"[GMRDataConversion] axis_angle[0] = {axis_angle[0]}")
+    print(f"[GMRDataConversion] axis_angle[1] = {axis_angle[1]}")
+    print(f"[GMRDataConversion] axis_angle[2] = {axis_angle[2]}")
     root_ang_vel = (axis_angle / dt).numpy()
+
+    print(f"[GMRDataConversion] root_ang_vel[0] = {root_ang_vel[0]}")
+    print(f"[GMRDataConversion] root_ang_vel[1] = {root_ang_vel[1]}")
+    print(f"[GMRDataConversion] root_ang_vel[2] = {root_ang_vel[2]}")
+    input("Press Enter to continue...")
 
     dof_vel = (dof_pos[1:] - dof_pos[:-1]) / dt
 

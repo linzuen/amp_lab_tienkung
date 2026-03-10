@@ -421,6 +421,11 @@ class AMPPPO:
             # Discriminator loss.
             policy_state, policy_next_state = sample_amp_policy
             expert_state, expert_next_state = sample_amp_expert
+            # if not self.policy.fixed_std and self.min_std is not None:
+            #     self.policy.std.data = self.policy.std.data.clamp(min=self.min_std)
+
+
+
             if self.amp_normalizer is not None:
                 with torch.no_grad():
                     policy_state = self.amp_normalizer.normalize_torch(policy_state, self.device)

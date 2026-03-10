@@ -124,7 +124,9 @@ class AmpOnPolicyRunner:
             train_cfg["amp_task_reward_lerp"],
         ).to(self.device)
         min_std = torch.zeros(len(train_cfg["min_normalized_std"]), device=self.device, requires_grad=False)
-
+        # min_std = (
+        #     torch.tensor(self.cfg["min_normalized_std"], device=self.device) *
+        #     (torch.abs(self.env.dof_pos_limits[:, 1] - self.env.dof_pos_limits[:, 0])))
         # initialize algorithm
         alg_class = eval(self.alg_cfg.pop("class_name"))
         self.alg: AMPPPO = alg_class(

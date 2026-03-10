@@ -16,6 +16,8 @@
 # with additional modifications by the TienKung-Lab Project,
 # and is distributed under the BSD-3-Clause license.
 
+import re
+
 import isaaclab.sim as sim_utils
 import isaacsim.core.utils.torch as torch_utils  # type: ignore
 import numpy as np
@@ -124,7 +126,97 @@ class AtomEnv(VecEnv):
         self.clip_actions = self.cfg.normalization.clip_actions
         self.clip_obs = self.cfg.normalization.clip_observations
 
+# [AtomEnv] action[0] -> joint 'left_hip_pitch_joint'
+# [AtomEnv] action[1] -> joint 'right_hip_pitch_joint'
+# [AtomEnv] action[2] -> joint 'waist_yaw_joint'
+# [AtomEnv] action[3] -> joint 'left_hip_roll_joint'
+# [AtomEnv] action[4] -> joint 'right_hip_roll_joint'
+# [AtomEnv] action[5] -> joint 'left_shoulder_pitch_joint'
+# [AtomEnv] action[6] -> joint 'right_shoulder_pitch_joint'
+# [AtomEnv] action[7] -> joint 'left_hip_yaw_joint'
+# [AtomEnv] action[8] -> joint 'right_hip_yaw_joint'
+# [AtomEnv] action[9] -> joint 'left_shoulder_roll_joint'
+# [AtomEnv] action[10] -> joint 'right_shoulder_roll_joint'
+# [AtomEnv] action[11] -> joint 'left_knee_joint'
+# [AtomEnv] action[12] -> joint 'right_knee_joint'
+# [AtomEnv] action[13] -> joint 'left_shoulder_yaw_joint'
+# [AtomEnv] action[14] -> joint 'right_shoulder_yaw_joint'
+# [AtomEnv] action[15] -> joint 'left_ankle_pitch_joint'
+# [AtomEnv] action[16] -> joint 'right_ankle_pitch_joint'
+# [AtomEnv] action[17] -> joint 'left_elbow_joint'
+# [AtomEnv] action[18] -> joint 'right_elbow_joint'
+# [AtomEnv] action[19] -> joint 'left_ankle_roll_joint'
+# [AtomEnv] action[20] -> joint 'right_ankle_roll_joint'
+# [AtomEnv] action[21] -> joint 'left_wrist_roll_joint'
+# [AtomEnv] action[22] -> joint 'right_wrist_roll_joint'
+# [AtomEnv] action[23] -> joint 'left_wrist_pitch_joint'
+# [AtomEnv] action[24] -> joint 'right_wrist_pitch_joint'
+# [AtomEnv] action[25] -> joint 'left_wrist_yaw_joint'
+# [AtomEnv] action[26] -> joint 'right_wrist_yaw_joint'
+
+        # === 获取关节名称并构建 action_scale 张量 ===
+        try:
+            joint_names = self.robot.data.joint_names  # 或者 self.robot.joint_names
+        except AttributeError:
+            joint_names = None
+
         self.action_scale = self.cfg.robot.action_scale
+        # if joint_names is not None:
+        #     for i, name in enumerate(joint_names):
+        #         print(f"[AtomEnv] action[{i}] -> joint '{name}'")
+        #         print(f"[AtomEnv] action_scale[{name}] = {self.action_scale[name]}")
+        # else:
+        #     print("[AtomEnv] 这个 Articulation 没有 joint_names 属性，需查一下 IsaacLab 接口。")
+        # 如果 action_scale 是字典（包含正则表达式模式），需要匹配并构建张量
+        if isinstance(self.action_scale, dict):
+            if joint_names is None:
+                raise ValueError("无法获取关节名称，无法匹配 action_scale 字典")
+            
+            action_scale_values = []
+            for i, joint_name in enumerate(joint_names):
+                matched_scale = None
+                matched_pattern = None
+                # 遍历 action_scale 字典，使用正则表达式匹配
+                for pattern, scale_value in self.action_scale.items():
+                    if re.match(pattern, joint_name):
+                        matched_scale = scale_value
+                        matched_pattern = pattern
+                        break
+                
+                if matched_scale is None:
+                    raise ValueError(f"关节 '{joint_name}' 无法匹配 action_scale 字典中的任何模式")
+                
+                # 打印调试信息
+                # print(f"[AtomEnv] action[{i}] -> joint '{joint_name}' (匹配模式: '{matched_pattern}') -> action_scale = {matched_scale}")
+                
+                action_scale_values.append(matched_scale)
+            
+            # 构建 action_scale 张量
+            self.action_scale = torch.tensor(
+                action_scale_values, 
+                dtype=torch.float, 
+                device=self.device, 
+                requires_grad=False
+            )
+            print(f"[AtomEnv] 已构建 action_scale 张量，形状: {self.action_scale.shape}")
+        elif isinstance(self.action_scale, (int, float)):
+            # 如果是标量，转换为张量
+            self.action_scale = torch.full(
+                (self.num_actions,), 
+                float(self.action_scale), 
+                dtype=torch.float, 
+                device=self.device, 
+                requires_grad=False
+            )
+        elif isinstance(self.action_scale, (list, tuple)):
+            # 如果是列表/元组，转换为张量
+            self.action_scale = torch.tensor(
+                self.action_scale, 
+                dtype=torch.float, 
+                device=self.device, 
+                requires_grad=False
+            )
+        # === action_scale 处理结束 ===
         self.action_buffer = DelayBuffer(
             self.cfg.domain_rand.action_delay.params["max_delay"], self.num_envs, device=self.device
         )
@@ -300,6 +392,13 @@ class AtomEnv(VecEnv):
         lin_vel = visual_motion_frame[33:36].clone()
         ang_vel = visual_motion_frame[36:39].clone()
 
+        print(f"[AtomEnv] lin_vel = {lin_vel}")
+        print(f"[AtomEnv] ang_vel = {ang_vel}")
+        print(f"[AtomEnv] root_pos = {root_pos}")
+        print(f"[AtomEnv] quat_wxyz = {quat_wxyz}")
+        input("Press Enter to continue...")
+
+
         # root state: [x, y, z, qw, qx, qy, qz, vx, vy, vz, wx, wy, wz]
         root_state = torch.zeros((self.num_envs, 13), device=device)
         root_state[:, 0:3] = torch.tile(root_pos.unsqueeze(0), (self.num_envs, 1))
@@ -398,9 +497,9 @@ class AtomEnv(VecEnv):
                 joint_pos * self.obs_scales.joint_pos,  # 27
                 joint_vel * self.obs_scales.joint_vel,  # 27
                 action * self.obs_scales.actions,  # 27
-                torch.sin(2 * torch.pi * self.gait_phase),  # 2
-                torch.cos(2 * torch.pi * self.gait_phase),  # 2
-                self.phase_ratio,  # 2
+                # torch.sin(2 * torch.pi * self.gait_phase),  # 2
+                # torch.cos(2 * torch.pi * self.gait_phase),  # 2
+                # self.phase_ratio,  # 2
             ],
             dim=-1,
         )
@@ -483,6 +582,8 @@ class AtomEnv(VecEnv):
     def step(self, actions: torch.Tensor):
         delayed_actions = self.action_buffer.compute(actions)
         self.action = torch.clip(delayed_actions, -self.clip_actions, self.clip_actions).to(self.device)
+
+        print(f"[AtomEnv] action_scale = {self.action_scale}")
 
         processed_actions = self.action * self.action_scale + self.robot.data.default_joint_pos
 

@@ -31,7 +31,7 @@ from isaaclab_rl.rsl_rl import (  # noqa:F401
 )
 
 import legged_lab.mdp as mdp
-from legged_lab.assets.atom_p3 import ATOM_P3_CFG
+from legged_lab.assets.atom_p3 import ATOM_P3_CFG, ATOM_P3_ACTION_SCALE
 from legged_lab.envs.base.base_config import (
     ActionDelayCfg,
     BaseSceneCfg,
@@ -62,8 +62,14 @@ class GaitCfg:
 
 @configclass
 class AtomRewardCfg:
-    track_lin_vel_xy_exp = RewTerm(func=mdp.track_lin_vel_xy_yaw_frame_exp, weight=1.0, params={"std": 0.5})
-    track_ang_vel_z_exp = RewTerm(func=mdp.track_ang_vel_z_world_exp, weight=1.0, params={"std": 0.5})
+    track_lin_vel_xy_exp = RewTerm(func=mdp.track_lin_vel_xy_yaw_frame_exp, weight=2.5, params={"std": 0.5})
+    track_ang_vel_z_exp = RewTerm(func=mdp.track_ang_vel_z_world_exp, weight=1.5, params={"std": 0.5})
+    # track_lin_vel_xy_exp = RewTerm(
+    #     func=mdp.track_lin_vel_xy_exp, weight=1.0, params={"command_name": "base_velocity", "std": math.sqrt(0.25)}
+    # )
+    # track_ang_vel_z_exp = RewTerm(
+    #     func=mdp.track_ang_vel_z_exp, weight=0.5, params={"command_name": "base_velocity", "std": math.sqrt(0.25)}
+    # )
     lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-1.0)
     ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
     energy = RewTerm(func=mdp.energy, weight=-1e-3)
@@ -101,37 +107,37 @@ class AtomRewardCfg:
             "max_reward": 400,
         },
     )
-    feet_too_near = RewTerm(
-        func=mdp.feet_too_near_humanoid,
-        weight=-2.0,
-        params={"asset_cfg": SceneEntityCfg("robot", body_names=[".*_ankle_roll_link"]), "threshold": 0.2},
-    )
+    # feet_too_near = RewTerm(
+    #     func=mdp.feet_too_near_humanoid,
+    #     weight=-2.0,
+    #     params={"asset_cfg": SceneEntityCfg("robot", body_names=[".*_ankle_roll_link"]), "threshold": 0.2},
+    # )
     feet_stumble = RewTerm(
         func=mdp.feet_stumble,
         weight=-2.0,
         params={"sensor_cfg": SceneEntityCfg("contact_sensor", body_names=[".*_ankle_roll_link"])},
     )
     dof_pos_limits = RewTerm(func=mdp.joint_pos_limits, weight=-2.0)
-    joint_deviation_hip = RewTerm(
-        func=mdp.joint_deviation_l1,
-        weight=-0.15,
-        params={
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                joint_names=[
-                    ".*_hip_yaw_joint",
-                    ".*_hip_roll_joint",
-                    ".*_shoulder_pitch_joint",
-                    ".*_elbow_joint",
-                ],
-            )
-        },
-    )
-    joint_deviation_arms = RewTerm(
-        func=mdp.joint_deviation_l1,
-        weight=-0.2,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_shoulder_roll_joint", ".*_shoulder_yaw_joint"])},
-    )
+    # joint_deviation_hip = RewTerm(
+    #     func=mdp.joint_deviation_l1,
+    #     weight=-0.15,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg(
+    #             "robot",
+    #             joint_names=[
+    #                 ".*_hip_yaw_joint",
+    #                 ".*_hip_roll_joint",
+    #                 ".*_shoulder_pitch_joint",
+    #                 ".*_elbow_joint",
+    #             ],
+    #         )
+    #     },
+    # )
+    # joint_deviation_arms = RewTerm(
+    #     func=mdp.joint_deviation_l1,
+    #     weight=-0.2,
+    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_shoulder_roll_joint", ".*_shoulder_yaw_joint"])},
+    # )
     joint_deviation_legs = RewTerm(
         func=mdp.joint_deviation_l1,
         weight=-0.02,
@@ -154,9 +160,9 @@ class AtomRewardCfg:
 
     ankle_torque = RewTerm(func=mdp.ankle_torque, weight=-0.0005)
     ankle_action = RewTerm(func=mdp.ankle_action, weight=-0.001)
-    hip_roll_action = RewTerm(func=mdp.hip_roll_action, weight=-1.0)
-    hip_yaw_action = RewTerm(func=mdp.hip_yaw_action, weight=-1.0)
-    feet_y_distance = RewTerm(func=mdp.feet_y_distance, weight=-2.0)
+    # hip_roll_action = RewTerm(func=mdp.hip_roll_action, weight=-0.25)
+    # hip_yaw_action = RewTerm(func=mdp.hip_yaw_action, weight=-0.25)
+    # feet_y_distance = RewTerm(func=mdp.feet_y_distance, weight=-2.0)
 
 
 @configclass
@@ -185,7 +191,7 @@ class AtomWalkFlatEnvCfg:
     robot: RobotCfg = RobotCfg(
         actor_obs_history_length=10,
         critic_obs_history_length=10,
-        action_scale=0.25,
+        action_scale=ATOM_P3_ACTION_SCALE,
         terminate_contacts_body_names=[".*_knee_link", ".*_shoulder_roll_link", ".*_elbow_link", "pelvis"],
         feet_body_names=[".*_ankle_roll_link"],
     )
@@ -339,4 +345,4 @@ class AtomWalkAgentCfg(RslRlOnPolicyRunnerCfg):
     amp_num_preload_transitions = 200000
     amp_task_reward_lerp = 0.7
     amp_discr_hidden_dims = [1024, 512, 256]
-    min_normalized_std = [0.05] * 20
+    min_normalized_std = [0.05] * 27
